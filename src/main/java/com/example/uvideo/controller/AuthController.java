@@ -1,21 +1,22 @@
 package com.example.uvideo.controller;
 
+import com.example.uvideo.dto.UserDTO;
 import com.example.uvideo.entity.Token;
 import com.example.uvideo.entity.User;
-import com.example.uvideo.dto.UserDTO;
 import com.example.uvideo.repository.TokenRepository;
 import com.example.uvideo.repository.UserRepository;
+import com.example.uvideo.service.AuthService;
 import com.example.uvideo.service.JWTService;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.jsonwebtoken.Claims;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
-
+import java.util.Map;
 import java.util.Optional;
 
 @RestController
@@ -29,6 +30,8 @@ public class AuthController {
     private JWTService jwtService;
     @Autowired
     private TokenRepository tokenRepository;
+    @Autowired
+    private AuthService authService;
 
     @PostMapping("/registration")
     public ResponseEntity<Object> registration(@Valid @RequestBody User user) {
@@ -40,90 +43,86 @@ public class AuthController {
             userRepository.save(user);
 
             UserDTO userDTO = new UserDTO(user.getId(), user.getPhone(), user.getDisplayName());
-            //create JSON-string
-            ObjectMapper objectMapper = new ObjectMapper();
-            String userData = objectMapper.writeValueAsString(userDTO);
+            Map<String, String> tokens = authService.createTokens(userDTO);
+            jwtService.saveRefreshToken(user.getId(), tokens.get("refreshToken"));
 
-            String token = jwtService.generateToken(userData);
-            jwtService.saveTokenInDB(user.getId(), token);
-            String cookie = jwtService.createCookie(token);
-
-            return ResponseEntity.ok().header(HttpHeaders.SET_COOKIE, cookie).body(userDTO);
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.SET_COOKIE, tokens.get("refreshCookie"))
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + tokens.get("accessToken"))
+                    .body(userDTO);
         }
         catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
 
-    // Логин по телефону + паролю
     @PostMapping("/login")
-    public ResponseEntity<Object> login(@RequestBody User user) {
+    public ResponseEntity<Object> login(@Valid @RequestBody User user) {
         try {
             Optional<User> existingUser = userRepository.findByPhone(user.getPhone());
             if (existingUser.isEmpty()) {
-                return ResponseEntity.badRequest().body("User not found");
+                return ResponseEntity.badRequest().body("Phone is not registered");
             }
 
-            String token = jwtService.generateToken(existingUser.get().getId().toString());
-            String cookie = jwtService.createCookie(token);
-            UserDTO userDTO = new UserDTO(user.getId(), user.getPhone(), user.getDisplayName());
+            UserDTO userDTO = new UserDTO(existingUser.get().getId(), existingUser.get().getPhone(), existingUser.get().getDisplayName());
+            Map<String, String> tokens = authService.createTokens(userDTO);
 
-            Optional<Token> existingToken = tokenRepository.findTokenByUserId(existingUser.get().getId());
-            if (existingToken.isEmpty()) {
-                jwtService.saveTokenInDB(existingUser.get().getId(), token);
-                return ResponseEntity.ok().header(HttpHeaders.SET_COOKIE, cookie).body(userDTO);
-            }
-            existingToken.get().setRefreshToken(token);
-            tokenRepository.save(existingToken.get());
-            return ResponseEntity.ok().header(HttpHeaders.SET_COOKIE, cookie).body(userDTO);
+            authService.updateToken(userDTO, tokens);
+
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.SET_COOKIE, tokens.get("refreshCookie"))
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + tokens.get("accessToken"))
+                    .body(userDTO);
         }
         catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
 
-    // Обновление токена
     @GetMapping("/refresh")
-    public ResponseEntity<?> refresh(@CookieValue("jwt") String refreshToken) {
+    public ResponseEntity<?> refresh(HttpServletRequest request) {
         try {
-            if(refreshToken == null || refreshToken.isEmpty()) {
-                return new ResponseEntity<>("Unauthorized", HttpStatus.UNAUTHORIZED);
+            String refreshToken = jwtService.getTokenFromCookie(request.getCookies(), "refreshToken");
+
+            if (refreshToken == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("No refresh token");
             }
-            Claims tokenData = jwtService.validateToken(refreshToken);
-            Optional<Token> tokenIsDB = tokenRepository.findTokenByRefreshToken(refreshToken);
-            String userId = tokenData.getSubject();
-            if(tokenIsDB.isEmpty() || userId == null) {
-                return new ResponseEntity<>("Unauthorized", HttpStatus.UNAUTHORIZED);
-            }
-            String token = jwtService.generateToken(userId);
-            String cookie = jwtService.createCookie(token);
-            Optional<Token> existingToken = tokenRepository.findTokenByUserId(Long.parseLong(userId));
-            if (existingToken.isEmpty()) {
-                jwtService.saveTokenInDB(Long.parseLong(userId), token);
-                return ResponseEntity.ok().header(HttpHeaders.SET_COOKIE, cookie).body("Success");
-            }
-            existingToken.get().setRefreshToken(token);
-            tokenRepository.save(existingToken.get());
-            return ResponseEntity.ok().header(HttpHeaders.SET_COOKIE, cookie).body("Success");
+
+            Claims claims = jwtService.validateToken(refreshToken);
+            String userData = claims.getSubject();
+
+            String newAccessToken = jwtService.generateAccessToken(userData);
+
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + newAccessToken)
+                    .body("Access token refreshed");
         }
         catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
 
-    // Выход — удаление токена из БД
     @GetMapping("/logout")
     public ResponseEntity<Object> logout(@RequestParam String token) {
         try {
             Optional<Token> tokenOpt = tokenRepository.findTokenByRefreshToken(token);
             if(tokenOpt.isPresent()) {
                 tokenRepository.delete(tokenOpt.get());
-                return ResponseEntity.ok("Logged out");
-            } else {
+
+                ResponseCookie deleteCookie = ResponseCookie.from("refreshToken", "")
+                        .path("/")
+                        .httpOnly(true)
+                        .maxAge(0)
+                        .build();
+
+                return ResponseEntity.ok()
+                        .header(HttpHeaders.SET_COOKIE, deleteCookie.toString())
+                        .body("Logged out");
+            }
+            else {
                 return ResponseEntity.badRequest().body("Invalid token");
             }
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
