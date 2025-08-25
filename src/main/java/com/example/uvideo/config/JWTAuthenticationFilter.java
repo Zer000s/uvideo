@@ -1,8 +1,8 @@
-package com.example.uvideo.service;
+package com.example.uvideo.config;
 
+import com.example.uvideo.service.JWTService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
-import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;

@@ -1,11 +1,18 @@
 package com.example.uvideo.controller;
 
-import com.example.uvideo.entity.User;
 import com.example.uvideo.entity.Video;
+import com.example.uvideo.dto.UserDTO;
 import com.example.uvideo.repository.VideoRepository;
+import com.example.uvideo.service.VideoService;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -13,7 +20,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.File;
 import java.io.IOException;
 import java.time.Instant;
-import java.util.Optional;
+import java.util.*;
 
 @RestController
 @RequestMapping("/video")
@@ -23,8 +30,12 @@ public class VideoController {
     @Autowired
     private VideoRepository videoRepository;
 
+    @Autowired
+    private VideoService videoService;
+
     private static final String VIDEO_DIR = "src/main/resources/static/videos";
 
+    //work with video
     @PostMapping("/upload")
     public ResponseEntity<Object> uploadVideo(
             @RequestParam("file") @Valid MultipartFile file,
@@ -61,6 +72,31 @@ public class VideoController {
             videoRepository.save(video);
 
             return ResponseEntity.ok(video);
+        }
+        catch (Exception e) {
+            return ResponseEntity.status(500).body(e.getMessage());
+        }
+    }
+
+    @DeleteMapping("/delete")
+    public ResponseEntity<Object> uploadVideo(@RequestParam @Valid Long videoId) throws JsonProcessingException {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String userPrincipal = auth.getPrincipal().toString();
+        ObjectMapper mapper = new ObjectMapper();
+        JsonNode userNode = mapper.readTree(userPrincipal);
+        Long userId = userNode.get("id").asLong();
+
+        videoService.deleteVideo(videoId, userId);
+
+        return ResponseEntity.ok("Video has been deleted");
+    }
+
+    //search
+    @GetMapping("/get_popular_videos")
+    public ResponseEntity<Object> getRecommendedVideos() {
+        try {
+            List<Video> popularVideos = videoRepository.findTop10ByOrderByViewsDesc();
+            return ResponseEntity.ok(popularVideos);
         }
         catch (Exception e) {
             return ResponseEntity.status(500).body(e.getMessage());
