@@ -34,7 +34,7 @@ public class AuthController {
     private AuthService authService;
 
     @PostMapping("/registration")
-    public ResponseEntity<Object> registration(@Valid @RequestBody User user) {
+    public ResponseEntity<Object> registration(@RequestBody @Valid User user) {
         try {
             Optional<User> existingUser = userRepository.findByPhone(user.getPhone());
             if (existingUser.isPresent()) {
@@ -57,7 +57,7 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<Object> login(@Valid @RequestBody User user) {
+    public ResponseEntity<Object> login(@RequestBody @Valid User user) {
         try {
             Optional<User> existingUser = userRepository.findByPhone(user.getPhone());
             if (existingUser.isEmpty()) {
@@ -103,7 +103,7 @@ public class AuthController {
     }
 
     @GetMapping("/logout")
-    public ResponseEntity<Object> logout(@RequestParam String token) {
+    public ResponseEntity<Object> logout(@RequestParam @Valid String token) {
         try {
             Optional<Token> tokenOpt = tokenRepository.findTokenByRefreshToken(token);
             if(tokenOpt.isPresent()) {
