@@ -3,7 +3,6 @@ package com.example.uvideo.config;
 import com.example.uvideo.exceptions.ApiError;
 import com.example.uvideo.exceptions.GlobalException;
 import com.example.uvideo.service.JWTService;
-import com.example.uvideo.utils.Utils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -16,11 +15,11 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import static com.example.uvideo.utils.Utils.PUBLIC_KEYS;
 
 @Configuration
 public class SecurityConfig {
     private final JWTService jwtService;
-    Utils utils = new Utils();
 
     public SecurityConfig(JWTService jwtService) {
         this.jwtService = jwtService;
@@ -33,7 +32,7 @@ public class SecurityConfig {
 
         http.csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(utils.publicEndpoints).permitAll()
+                        .requestMatchers(PUBLIC_KEYS).permitAll()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)

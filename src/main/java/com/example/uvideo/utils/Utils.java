@@ -1,10 +1,12 @@
 package com.example.uvideo.utils;
 
 public class Utils {
-    public String[] publicEndpoints = {
+    public static final String[] PUBLIC_KEYS = {
             "/auth/registration",
             "/auth/login",
             "/auth/refresh",
-            "/video/get_recommended_videos"
+            "/video/static/*"
     };
+
+    public static final String VIDEO_DIR = "src/main/resources/static/data";
 }

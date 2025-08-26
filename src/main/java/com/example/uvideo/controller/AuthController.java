@@ -16,8 +16,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 
 @RestController
@@ -30,9 +33,9 @@ public class AuthController {
     @Autowired
     private JWTService jwtService;
     @Autowired
-    private TokenRepository tokenRepository;
-    @Autowired
     private AuthService authService;
+    @Autowired
+    private PasswordEncoder passwordEncoder;
 
     @PostMapping("/registration")
     public ResponseEntity<Object> registration(@RequestBody @Valid User user) throws JsonProcessingException {
@@ -40,6 +43,9 @@ public class AuthController {
         if (existingUser.isPresent()) {
             throw new GlobalException("Phone is already registered");
         }
+        String hashedPassword = passwordEncoder.encode(user.getPassword());
+        user.setPassword(hashedPassword);
+
         userRepository.save(user);
 
         UserDTO userDTO = new UserDTO(user.getId(), user.getPhone(), user.getDisplayName());
@@ -58,7 +64,9 @@ public class AuthController {
         if (existingUser.isEmpty()) {
             throw new GlobalException("Phone is not registered");
         }
-
+        if (!passwordEncoder.matches(user.getPassword(), existingUser.get().getPassword())) {
+            throw new GlobalException("Wrong password");
+        }
         UserDTO userDTO = new UserDTO(existingUser.get().getId(), existingUser.get().getPhone(), existingUser.get().getDisplayName());
         Map<String, String> tokens = authService.createTokens(userDTO);
 
@@ -72,16 +80,7 @@ public class AuthController {
 
     @GetMapping("/refresh")
     public ResponseEntity<?> refresh(HttpServletRequest request) {
-        String refreshToken = jwtService.getTokenFromCookie(request.getCookies(), "refreshToken");
-
-        if (refreshToken == null) {
-            throw new GlobalException("No refresh token");
-        }
-
-        Claims claims = jwtService.validateToken(refreshToken);
-        String userData = claims.getSubject();
-
-        String newAccessToken = jwtService.generateAccessToken(userData);
+        String newAccessToken = authService.refresh(request.getCookies());
 
         return ResponseEntity.ok()
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + newAccessToken)
@@ -90,17 +89,7 @@ public class AuthController {
 
     @GetMapping("/logout")
     public ResponseEntity<Object> logout(@RequestParam @Valid String token) {
-        Optional<Token> tokenOpt = tokenRepository.findTokenByRefreshToken(token);
-        if(tokenOpt.isEmpty()) {
-            throw new GlobalException("Invalid token");
-        }
-        tokenRepository.delete(tokenOpt.get());
-
-        ResponseCookie deleteCookie = ResponseCookie.from("refreshToken", "")
-                .path("/")
-                .httpOnly(true)
-                .maxAge(0)
-                .build();
+        ResponseCookie deleteCookie = authService.logout(token);
 
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, deleteCookie.toString())
