@@ -4,6 +4,7 @@ import com.example.uvideo.entity.Video;
 import com.example.uvideo.dto.UserDTO;
 import com.example.uvideo.exceptions.GlobalException;
 import com.example.uvideo.repository.VideoRepository;
+import com.example.uvideo.service.AuthService;
 import com.example.uvideo.service.VideoService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -29,6 +30,8 @@ import java.nio.file.Paths;
 import java.time.Instant;
 import java.util.*;
 
+import static com.example.uvideo.utils.Utils.VIDEO_DIR;
+
 @RestController
 @RequestMapping("/video")
 @CrossOrigin(origins = "*")
@@ -39,33 +42,36 @@ public class VideoController {
 
     @Autowired
     private VideoService videoService;
+    @Autowired
+    private AuthService authService;
 
     //work with video
     @PostMapping(value = "/upload", consumes = "application/octet-stream")
-    public ResponseEntity<Object> uploadVideoStream(
+    public ResponseEntity<Object> uploadStreamVideo(
             HttpServletRequest request,
-            @RequestParam("title") String title,
-            @RequestParam(value = "description", required = false) String description) throws IOException {
+            @RequestParam("title") @Valid String title,
+            @RequestParam(value = "description", required = false) @Valid String description) throws IOException {
+        Long userId = authService.getUserIdFromAuthentication();
 
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        String userPrincipal = auth.getPrincipal().toString();
-        ObjectMapper mapper = new ObjectMapper();
-        JsonNode userNode = mapper.readTree(userPrincipal);
-        Long userId = userNode.get("id").asLong();
-
-        String filename = videoService.saveVideoStream(request.getInputStream());
+        String filename = videoService.uploadStreamVideo(request.getInputStream());
 
         Video video = videoService.saveVideo(userId, title, description, filename);
         return ResponseEntity.ok(video);
     }
 
+    @PutMapping(value = "/update")
+    public ResponseEntity<Object> updateVideo(
+            @RequestParam("videoId") Long videoId,
+            @RequestParam("title") String title,
+            @RequestParam(value = "description", required = false) String description) throws IOException {
+        Video video = videoService.updateVideo(videoId, title, description);
+
+        return ResponseEntity.ok(video);
+    }
+
     @DeleteMapping("/delete")
     public ResponseEntity<Object> deleteVideo(@RequestParam @Valid Long videoId) throws JsonProcessingException {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        String userPrincipal = auth.getPrincipal().toString();
-        ObjectMapper mapper = new ObjectMapper();
-        JsonNode userNode = mapper.readTree(userPrincipal);
-        Long userId = userNode.get("id").asLong();
+        Long userId = authService.getUserIdFromAuthentication();
 
         videoService.deleteVideo(videoId, userId);
 
@@ -74,11 +80,10 @@ public class VideoController {
 
     //search
     @GetMapping(value = "/static/{filename}", produces = "video/mp4")
-    public ResponseEntity<Resource> getVideoByFilename(
-            @PathVariable String filename,
-            @RequestHeader(value = "Range", required = false) String rangeHeader
-    ) throws IOException {
-        Path path = Paths.get(System.getProperty("user.dir"), "src/main/resources/static/data/", filename);
+    public ResponseEntity<Resource> getStreamVideoByFilename(
+            @PathVariable @Valid String filename,
+            @RequestHeader(value = "Range", required = false) @Valid String rangeHeader) throws IOException {
+        Path path = Paths.get(System.getProperty("user.dir"),VIDEO_DIR, filename);
         File file = path.toFile();
 
         if (!file.exists()) {

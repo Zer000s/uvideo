@@ -7,11 +7,14 @@ import com.example.uvideo.exceptions.GlobalException;
 import com.example.uvideo.repository.TokenRepository;
 import com.example.uvideo.repository.UserRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.http.Cookie;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseCookie;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.util.HashMap;
@@ -78,5 +81,13 @@ public class AuthService {
             return;
         }
         jwtService.saveRefreshToken(userDTO.getId(), tokens.get("refreshToken"));
+    }
+
+    public Long getUserIdFromAuthentication() throws JsonProcessingException {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String userPrincipal = auth.getPrincipal().toString();
+        ObjectMapper mapper = new ObjectMapper();
+        JsonNode userNode = mapper.readTree(userPrincipal);
+        return userNode.get("id").asLong();
     }
 }

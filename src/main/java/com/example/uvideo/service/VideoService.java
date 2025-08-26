@@ -3,6 +3,7 @@ package com.example.uvideo.service;
 import com.example.uvideo.exceptions.GlobalException;
 import com.example.uvideo.entity.Video;
 import com.example.uvideo.repository.VideoRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.io.File;
@@ -17,25 +18,35 @@ import static com.example.uvideo.utils.Utils.VIDEO_DIR;
 public class VideoService {
     private final VideoRepository videoRepository;
 
+    @Autowired
+    AuthService authService;
+
     public VideoService(VideoRepository videoRepository) {
         this.videoRepository = videoRepository;
     }
 
     @Transactional
     public void deleteVideo(Long videoId, Long userId) {
-        Optional<Video> video = videoRepository.findVideoById(videoId);
-        if (video.isEmpty()) {
-            throw new GlobalException("Video with id " + videoId + " not found");
+        Optional<Video> existingVideo = videoRepository.findVideoById(videoId);
+        if (existingVideo.isEmpty()) {
+            throw new GlobalException("Video with id " + videoId + " not found in DB");
         }
-
-        if (!video.get().getUserId().equals(userId)) {
+        if (!existingVideo.get().getUserId().equals(userId)) {
             throw new GlobalException("You don't have permission to delete this video");
         }
+        File deletedVideo = new File(System.getProperty("user.dir"),"/" + VIDEO_DIR + "/" + existingVideo.get().getVideoUrl());
+        if(!deletedVideo.exists()) {
+            throw new GlobalException("Video with id " + videoId + " not found in FS");
+        }
+        boolean deleted = deletedVideo.delete();
+        if (!deleted) {
+            throw new GlobalException("Failed to delete video file from disk");
+        }
 
-        videoRepository.delete(video.get());
+        videoRepository.deleteById(videoId);
     }
 
-    public String saveVideoStream(InputStream inputStream) throws IOException {
+    public String uploadStreamVideo(InputStream inputStream) throws IOException {
         String filename = System.currentTimeMillis() + ".mp4";
 
         File uploadDir = new File(System.getProperty("user.dir"), VIDEO_DIR);
@@ -67,5 +78,29 @@ public class VideoService {
         videoRepository.save(video);
 
         return video;
+    }
+
+    public Video updateVideo(Long videoId, String title, String description) throws IOException {
+        Long userId = authService.getUserIdFromAuthentication();
+
+        Optional<Video> existingVideo = videoRepository.findVideoById(videoId);
+        if (existingVideo.isEmpty()) {
+            throw new GlobalException("Video with id " + videoId + " not found in DB");
+        }
+
+        if (!existingVideo.get().getUserId().equals(userId)) {
+            throw new GlobalException("You don't have permission to delete this video");
+        }
+
+        if (title != null && !title.isBlank()) {
+            existingVideo.get().setTitle(title);
+        }
+        if (description != null && !description.isBlank()) {
+            existingVideo.get().setDescription(description);
+        }
+
+        videoRepository.save(existingVideo.get());
+
+        return existingVideo.get();
     }
 }
