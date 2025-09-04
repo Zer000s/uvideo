@@ -2,12 +2,12 @@ package com.example.uvideo.dto;
 
 public class UserDTO {
     private Long id;
-    private String phone;
+    private String email;
     private String displayName;
 
-    public UserDTO(Long id, String phone, String displayName) {
+    public UserDTO(Long id, String email, String displayName) {
         this.id = id;
-        this.phone = phone;
+        this.email = email;
         this.displayName = displayName;
     }
 
@@ -15,8 +15,8 @@ public class UserDTO {
         return id;
     }
 
-    public String getPhone() {
-        return phone;
+    public String getEmail() {
+        return email;
     }
 
     public String getDisplayName() {
@@ -31,7 +31,7 @@ public class UserDTO {
         this.displayName = displayName;
     }
 
-    public void setPhone(String phone) {
-        this.phone = phone;
+    public void setEmail(String email) {
+        this.email = email;
     }
 }

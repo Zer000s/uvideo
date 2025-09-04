@@ -2,18 +2,22 @@ package com.example.uvideo.entity;
 
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
+import org.springframework.beans.factory.annotation.Value;
 
 import java.time.Instant;
 
 @Entity
 @Table(name = "users")
 public class User {
+    @Value("${SERVER_URL}")
+    private String SERVER_URL;
+
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @NotBlank(message = "Phone is not null")
-    @Column(nullable = false, unique = true, length = 32)
-    private String phone;
+    @NotBlank(message = "Email is not null")
+    @Column(nullable = false, unique = true)
+    private String email;
 
     @NotBlank(message = "Password is not null")
     @Column(nullable = false)
@@ -22,8 +26,8 @@ public class User {
     @Column(length = 200)
     private String displayName;
 
-    @Column(columnDefinition = "TEXT")
-    private String avatarUrl;
+    @Column()
+    private String avatarUrl = SERVER_URL + "/user.png";
 
     @Column(nullable = false)
     private Instant createdAt = Instant.now();
@@ -48,8 +52,8 @@ public class User {
         return displayName;
     }
 
-    public String getPhone() {
-        return phone;
+    public String getEmail() {
+        return email;
     }
 
     public void setAvatarUrl(String avatarUrl) {
@@ -68,8 +72,8 @@ public class User {
         this.id = id;
     }
 
-    public void setPhone(String phone) {
-        this.phone = phone;
+    public void setEmail(String phone) {
+        this.email = phone;
     }
 
     public void setPassword(String password) {

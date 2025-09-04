@@ -1,34 +1,21 @@
 package com.example.uvideo.controller;
 
 import com.example.uvideo.entity.Video;
-import com.example.uvideo.dto.UserDTO;
 import com.example.uvideo.exceptions.GlobalException;
 import com.example.uvideo.repository.VideoRepository;
 import com.example.uvideo.service.AuthService;
 import com.example.uvideo.service.VideoService;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.core.io.Resource;
-import org.springframework.core.io.UrlResource;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
-
 import java.io.*;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.time.Instant;
-import java.util.*;
 
 import static com.example.uvideo.utils.Utils.VIDEO_DIR;
 
@@ -36,10 +23,6 @@ import static com.example.uvideo.utils.Utils.VIDEO_DIR;
 @RequestMapping("/video")
 @CrossOrigin(origins = "*")
 public class VideoController {
-
-    @Autowired
-    private VideoRepository videoRepository;
-
     @Autowired
     private VideoService videoService;
     @Autowired

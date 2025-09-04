@@ -5,6 +5,8 @@ public class Utils {
             "/auth/registration",
             "/auth/login",
             "/auth/refresh",
+            "/auth/generate_code",
+            "/auth/reset",
             "/video/static/*"
     };
 
