@@ -1,32 +1,32 @@
 # 📺 uVideo
 
-uVideo is a video-sharing platform similar to YouTube.  
-It allows users to register, upload videos, watch content, and interact with other users.  
-The backend is built with **Spring Boot**, **Spring Security (JWT Auth)**, and **JPA**.
+uVideo — это видеоплатформа наподобие YouTube.  
+Пользователи могут регистрироваться, загружать и смотреть видео, а также взаимодействовать друг с другом.  
+Бэкенд построен на **Spring Boot**, **Spring Security (JWT)** и **JPA**.
 
 ---
 
-## ✨ Features
+## ✨ Возможности
 
-- 🔐 **Authentication & Authorization**
-  - JWT-based authentication (Access + Refresh tokens)
-  - Access token is returned in `Authorization: Bearer ...`
-  - Refresh token is stored securely in `HttpOnly` cookies
+- 🔐 **Аутентификация и авторизация**
+  - JWT (Access + Refresh токены)
+  - Access в `Authorization: Bearer ...`
+  - Refresh в `HttpOnly` cookie
 
-- 👤 **User Management**
-  - Registration & login via phone number
-  - User profile with display name & avatar
-  - Secure password hashing with `BCrypt`
+- 👤 **Пользователи**
+  - Регистрация и вход по Email
+  - Профиль с именем и аватаром
+  - Хранение паролей через `BCrypt`
 
-- 🎬 **Video**
-  - Upload and store video metadata
-  - (planned) Streaming support
-  - (planned) Likes, comments, subscriptions
+- 🎬 **Видео**
+  - Загрузка и хранение метаданных
+  - Потоковая загрузка и воспроизведение
+  - (в планах) лайки, комментарии, подписки
 
-- ⚡ **Tech Stack**
+- ⚡ **Технологии**
   - **Java 17+**
   - **Spring Boot 3**
   - **Spring Security 6 (JWT)**
   - **JPA / Hibernate**
-  - **PostgreSQL** (or any SQL DB)
+  - **PostgreSQL**
   - **Maven**
