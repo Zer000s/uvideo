@@ -4,12 +4,15 @@ import com.example.uvideo.exceptions.GlobalException;
 import com.example.uvideo.entity.Video;
 import com.example.uvideo.repository.VideoRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.InputStreamResource;
+import org.springframework.core.io.Resource;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
+
+import java.io.*;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.Instant;
 import java.util.Optional;
 import static com.example.uvideo.utils.Utils.VIDEO_DIR;
@@ -17,12 +20,47 @@ import static com.example.uvideo.utils.Utils.VIDEO_DIR;
 @Service
 public class VideoService {
     private final VideoRepository videoRepository;
+    private final AuthService authService;
 
     @Autowired
-    AuthService authService;
-
-    public VideoService(VideoRepository videoRepository) {
+    public VideoService(VideoRepository videoRepository, AuthService authService) {
         this.videoRepository = videoRepository;
+        this.authService = authService;
+    }
+
+    public Video handleUploadVideo(Long userId, String title, String description, InputStream inputStream) throws IOException {
+        String filename = uploadStreamVideo(inputStream);
+        return saveVideo(userId, title, description, filename);
+    }
+
+    public ResponseEntity<Resource> getVideoStream(String filename, String rangeHeader) throws IOException {
+        Path path = Paths.get(System.getProperty("user.dir"), VIDEO_DIR, filename);
+        File file = path.toFile();
+
+        if (!file.exists()) throw new GlobalException("Video is not found");
+
+        long fileLength = file.length();
+        long rangeStart = 0;
+        long rangeEnd = fileLength - 1;
+
+        if (rangeHeader != null && rangeHeader.startsWith("bytes=")) {
+            String[] ranges = rangeHeader.substring(6).split("-");
+            rangeStart = Long.parseLong(ranges[0]);
+            if (ranges.length > 1 && !ranges[1].isEmpty()) rangeEnd = Long.parseLong(ranges[1]);
+        }
+        if (rangeEnd >= fileLength) rangeEnd = fileLength - 1;
+
+        long contentLength = rangeEnd - rangeStart + 1;
+        InputStream inputStream = new FileInputStream(file);
+        inputStream.skip(rangeStart);
+        Resource resource = new InputStreamResource(inputStream);
+
+        return ResponseEntity.status(rangeHeader == null ? 200 : 206)
+                .header("Content-Type", "video/mp4")
+                .header("Accept-Ranges", "bytes")
+                .header("Content-Length", String.valueOf(contentLength))
+                .header("Content-Range", "bytes " + rangeStart + "-" + rangeEnd + "/" + fileLength)
+                .body(resource);
     }
 
     @Transactional

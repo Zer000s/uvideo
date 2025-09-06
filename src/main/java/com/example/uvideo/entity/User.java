@@ -3,7 +3,6 @@ package com.example.uvideo.entity;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import org.springframework.beans.factory.annotation.Value;
-
 import java.time.Instant;
 
 @Entity
